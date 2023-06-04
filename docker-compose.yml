@@ -1,0 +1,103 @@
+version: '3'
+
+networks:
+  dockerizelaravel:
+
+services:
+  #Ngnix Server
+  webserver:
+    build: 
+      context: ./dockerfiles
+      dockerfile: ngnix.dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    container_name: webserver
+    ports:
+      - 8088:80
+    volumes:
+      - ./src:/var/www/html
+    networks:
+      - dockerizelaravel
+    depends_on:
+      - php 
+
+#PHP service
+  php:
+    build: 
+      context: ./dockerfiles
+      dockerfile: php.dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    container_name: php
+    restart: unless-stopped
+    tty: true
+    volumes:
+      -  ./src:/var/www/html
+    networks:
+      - dockerizelaravel
+#mysql
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - 4444:3306
+    volumes:
+      - ./mysql:/var/lib/mysql 
+    environment:
+       MYSQL_DATABASE: homestead
+       MYSQL_USER: homestead
+       MYSQL_PASSWORD: secret
+       MYSQL_ROOT_PASSWORD: secret
+       SERVICE_TAGS: dev
+       SERVICE_NAME: mysql
+       UPLOAD_LIMIT: 800M
+    networks:
+      - dockerizelaravel  
+
+#phpmyadmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin  
+    restart: always
+    container_name: phpmyadmin
+    depends_on:
+      - php 
+      - mysql
+    ports:
+      - "8081:80"  
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+      UPLOAD_LIMIT: 800M
+    networks:
+      - dockerizelaravel 
+
+#redis
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    networks:
+      - dockerizelaravel
+
+#npm 
+  npm:
+    image: node:current-alpine
+    container_name: npm
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./src:/var/www/html
+    # ports:
+    #   - "3000:3000"
+    #   - "3001:3001"
+    #   - "5173:5173"
+    networks:
+      - dockerizelaravel
